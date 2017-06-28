@@ -1,0 +1,233 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mule xmlns="http://www.mulesoft.org/schema/mule/core"
+	xmlns:apikit="http://www.mulesoft.org/schema/mule/apikit" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
+	xmlns:dw="http://www.mulesoft.org/schema/mule/ee/dw" xmlns:http="http://www.mulesoft.org/schema/mule/http"
+	xmlns:metadata="http://www.mulesoft.org/schema/mule/metadata"
+	xmlns:spring="http://www.springframework.org/schema/beans" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/apikit http://www.mulesoft.org/schema/mule/apikit/current/mule-apikit.xsd
+http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-3.1.xsd
+http://www.mulesoft.org/schema/mule/ee/dw http://www.mulesoft.org/schema/mule/ee/dw/current/dw.xsd">
+	<http:listener-config name="api-httpListenerConfig"
+		host="0.0.0.0" port="8081" doc:name="HTTP Listener Configuration" />
+	<http:request-config name="platform-account"
+		protocol="HTTPS" host="anypoint.mulesoft.com" port="443" basePath="/accounts"
+		doc:name="HTTP Request Configuration">
+		<http:raml-api-configuration
+			location="https://anypoint.mulesoft.com/apiplatform/repository/v2/organizations/ae084d14-153f-49bc-a588-a619ca4ccf9f/public/apis/11270/versions/11646/files/root" />
+	</http:request-config>
+	<http:request-config name="platform" protocol="HTTPS"
+		host="anypoint.mulesoft.com" port="443" basePath="/apiplatform/repository/v2/"
+		doc:name="HTTP Request Configuration" />
+	<apikit:config name="api-config" raml="api.raml"
+		consoleEnabled="false" doc:name="Router" />
+	<flow name="api-main">
+		<http:listener config-ref="api-httpListenerConfig" path="/api/*"
+			doc:name="HTTP" />
+		<apikit:router config-ref="api-config" doc:name="APIkit Router" />
+		<exception-strategy ref="api-apiKitGlobalExceptionMapping"
+			doc:name="Reference Exception Strategy" />
+	</flow>
+	<flow name="api-console">
+		<http:listener config-ref="api-httpListenerConfig" path="/console/*"
+			doc:name="HTTP" />
+		<apikit:console config-ref="api-config" doc:name="APIkit Console" />
+	</flow>
+
+	<flow name="get:/apis:api-config">
+        <set-variable variableName="organization" value="${anypoint.organization}" doc:name="organization" />
+        <http:request config-ref="platform" path="/organizations/{organizationId}//public/portals" method="GET" doc:name="HTTP">
+            <http:request-builder>
+                <http:query-param paramName="query[description]" value="#[message.inboundProperties.'http.query.params'.searchTerm]"/>
+                <http:uri-param paramName="organizationId" value="#[flowVars.organization]" />
+            </http:request-builder>
+        </http:request>
+	</flow>
+	<flow name="post:/apis/apiupdates:api-config">
+		<dw:transform-message doc:name="Transform Message">
+			<dw:set-payload><![CDATA[%dw 1.0
+%output application/java
+---
+{
+}]]></dw:set-payload>
+			<dw:set-variable variableName="api"><![CDATA[%dw 1.0
+%output application/java
+---
+{
+	id: payload.apiid,
+	versionid: payload.apiversionid
+}]]></dw:set-variable>
+		</dw:transform-message>
+		<set-variable variableName="username" value="${anypoint.username}"
+			doc:name="username" />
+		<set-variable variableName="password" value="${anypoint.password}"
+			doc:name="password" />
+		<set-variable variableName="organization" value="${anypoint.organization}"
+			doc:name="organization" />
+
+		<dw:transform-message doc:name="Transform Message">
+			<dw:input-variable variableName="username" />
+			<dw:input-variable variableName="password" />
+			<dw:input-variable variableName="organization" />
+			<dw:set-payload><![CDATA[%dw 1.0
+%output application/json
+---
+{
+	username: flowVars.username,
+	password: flowVars.password
+}]]></dw:set-payload>
+		</dw:transform-message>
+		<object-to-string-transformer doc:name="Object to String" />
+		<logger message="login #[payload]" level="INFO" doc:name="Logger" />
+
+		<http:request config-ref="platform-account" path="/login"
+			method="POST" doc:name="HTTP" />
+
+
+
+		<dw:transform-message doc:name="Transform Message"
+			metadata:id="1483f33f-016c-4ca0-8ab6-68f39df4ed21">
+			<dw:set-payload><![CDATA[%dw 1.0
+%output application/json
+---
+{
+	description: 'temp'
+}]]></dw:set-payload>
+			<dw:set-variable variableName="token"><![CDATA[%dw 1.0
+%output application/java
+---
+{
+	auth: payload.access_token
+}]]></dw:set-variable>
+		</dw:transform-message>
+		<enricher source="#[payload]" target="#[flowVars['raml']]"
+			doc:name="Message Enricher">
+			<processor-chain doc:name="Processor Chain">
+				<http:request config-ref="platform"
+					path="/organizations/{organizationId}/public/apis/{apiId}/versions/{apiVersionId}/files/root"
+					method="GET" doc:name="HTTP">
+					<http:request-builder>
+						<http:query-param paramName="apiName" value="Odd" />
+						<http:uri-param paramName="organizationId"
+							value="#[flowVars.organization]" />
+						<http:uri-param paramName="apiId" value="#[flowVars.api.id]" />
+						<http:uri-param paramName="apiVersionId"
+							value="#[flowVars.api.versionid]" />
+						<http:header headerName="Authorization"
+							value="#['Bearer '+flowVars.token.auth]" />
+					</http:request-builder>
+				</http:request>
+				<object-to-string-transformer doc:name="Object to String" />
+			</processor-chain>
+		</enricher>
+		<http:request config-ref="platform"
+			path="/organizations/{organizationId}/apis/{apiId}/versions/{apiVersionId}"
+			method="GET" doc:name="HTTP">
+			<http:request-builder>
+				<http:query-param paramName="apiName" value="Odd" />
+				<http:uri-param paramName="organizationId" value="#[flowVars.organization]" />
+				<http:uri-param paramName="apiId" value="#[flowVars.api.id]" />
+				<http:uri-param paramName="apiVersionId" value="#[flowVars.api.versionid]" />
+				<http:header headerName="Authorization"
+					value="#['Bearer '+flowVars.token.auth]" />
+			</http:request-builder>
+		</http:request>
+		<dw:transform-message doc:name="Transform Message"
+			metadata:id="ca783a96-25b7-4265-8461-c0cb8b9e1143">
+			<dw:input-payload mimeType="application/json" />
+			<dw:set-payload><![CDATA[%dw 1.0
+%output application/json
+---
+{
+	audit: payload.audit,
+	masterOrganizationId: payload.masterOrganizationId,
+	organizationId: payload.organizationId,
+	id: payload.id,
+	apiId: payload.apiId,
+	portalId: payload.portalId,
+	name: payload.name,
+	assetVersion: payload.assetVersion,
+	productVersion: payload.productVersion,
+	description: 'Custom Description' ++ ((flowVars.raml replace '\"' with ' ') replace ':' with ''),
+	tags: payload.tags map ((tag , indexOfTag) -> tag),
+	order: payload.order,
+	rootFileId: payload.rootFileId,
+	deprecated: payload.deprecated,
+	lastActiveDate: payload.lastActiveDate,
+	endpointUri: payload.endpointUri,
+	terms: payload.terms,
+	termsDate: payload.termsDate,
+	endpoint: payload.endpoint,
+	deployment: payload.deployment,
+	permissions: payload.permissions
+}]]></dw:set-payload>
+		</dw:transform-message>
+
+
+		<http:request config-ref="platform"
+			path="/organizations/{organizationId}/apis/{apiId}/versions/{apiVersionId}"
+			method="PUT" doc:name="HTTP">
+			<http:request-builder>
+				<http:query-param paramName="apiName" value="Odd" />
+				<http:uri-param paramName="organizationId" value="#[flowVars.organization]" />
+				<http:uri-param paramName="apiId" value="#[flowVars.api.id]" />
+				<http:uri-param paramName="apiVersionId" value="#[flowVars.api.versionid]" />
+				<http:header headerName="Authorization"
+					value="#['Bearer '+flowVars.token.auth]" />
+			</http:request-builder>
+		</http:request>
+		<dw:transform-message doc:name="Transform Message">
+			<dw:set-payload><![CDATA[%dw 1.0
+%output application/json
+---
+payload]]></dw:set-payload>
+		</dw:transform-message>
+	</flow>
+	<apikit:mapping-exception-strategy
+		name="api-apiKitGlobalExceptionMapping">
+		<apikit:mapping statusCode="404">
+			<apikit:exception
+				value="org.mule.module.apikit.exception.NotFoundException" />
+			<set-property propertyName="Content-Type" value="application/json"
+				doc:name="Property" />
+			<set-payload
+				value="{ &quot;message&quot;: &quot;Resource not found&quot; }"
+				doc:name="Set Payload" />
+		</apikit:mapping>
+		<apikit:mapping statusCode="405">
+			<apikit:exception
+				value="org.mule.module.apikit.exception.MethodNotAllowedException" />
+			<set-property propertyName="Content-Type" value="application/json"
+				doc:name="Property" />
+			<set-payload
+				value="{ &quot;message&quot;: &quot;Method not allowed&quot; }"
+				doc:name="Set Payload" />
+		</apikit:mapping>
+		<apikit:mapping statusCode="415">
+			<apikit:exception
+				value="org.mule.module.apikit.exception.UnsupportedMediaTypeException" />
+			<set-property propertyName="Content-Type" value="application/json"
+				doc:name="Property" />
+			<set-payload
+				value="{ &quot;message&quot;: &quot;Unsupported media type&quot; }"
+				doc:name="Set Payload" />
+		</apikit:mapping>
+		<apikit:mapping statusCode="406">
+			<apikit:exception
+				value="org.mule.module.apikit.exception.NotAcceptableException" />
+			<set-property propertyName="Content-Type" value="application/json"
+				doc:name="Property" />
+			<set-payload value="{ &quot;message&quot;: &quot;Not acceptable&quot; }"
+				doc:name="Set Payload" />
+		</apikit:mapping>
+		<apikit:mapping statusCode="400">
+			<apikit:exception
+				value="org.mule.module.apikit.exception.BadRequestException" />
+			<set-property propertyName="Content-Type" value="application/json"
+				doc:name="Property" />
+			<set-payload value="{ &quot;message&quot;: &quot;Bad request&quot; }"
+				doc:name="Set Payload" />
+		</apikit:mapping>
+	</apikit:mapping-exception-strategy>
+</mule>

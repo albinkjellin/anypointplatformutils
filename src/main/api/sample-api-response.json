@@ -1,0 +1,59 @@
+{
+   "total":1,
+   "apis":[
+      {
+         "audit":{
+            "created":{
+               "date":"2017-06-27T09:22:48.344Z"
+            },
+            "updated":{
+
+            }
+         },
+         "masterOrganizationId":"24b8a5b8-2b62-442d-8028-337f9e8f259c",
+         "organizationId":"24b8a5b8-2b62-442d-8028-337f9e8f259c",
+         "id":22047514,
+         "name":"Albin",
+         "groupId":null,
+         "assetId":null,
+         "versions":[
+            {
+               "audit":{
+                  "created":{
+                     "date":"2017-06-27T09:22:48.344Z"
+                  },
+                  "updated":{
+                     "date":"2017-06-28T07:25:49.892Z"
+                  }
+               },
+               "masterOrganizationId":"24b8a5b8-2b62-442d-8028-337f9e8f259c",
+               "organizationId":"24b8a5b8-2b62-442d-8028-337f9e8f259c",
+               "id":747442,
+               "apiId":22047514,
+               "portalId":81990,
+               "name":"1",
+               "assetVersion":null,
+               "productVersion":null,
+               "description":"Custom Description",
+               "tags":[
+
+               ],
+               "order":1,
+               "rootFileId":1729779,
+               "deprecated":false,
+               "lastActiveDate":null,
+               "endpointUri":"www.google.com",
+               "terms":null,
+               "termsDate":"2017-06-28T07:25:49.892Z",
+               "portal":{
+                  "isPublic":true
+               },
+               "pinned":false,
+               "masterOrganizationName":"amsadmin",
+               "portalUrl":"https://anypoint.mulesoft.com/apiplatform/amsadmin/#/portals/organizations/24b8a5b8-2b62-442d-8028-337f9e8f259c/apis/22047514/versions/747442",
+               "ramlUrl":"https://anypoint.mulesoft.com/apiplatform/repository/v2/organizations/24b8a5b8-2b62-442d-8028-337f9e8f259c/public/apis/22047514/versions/747442/files/root"
+            }
+         ]
+      }
+   ]
+}
